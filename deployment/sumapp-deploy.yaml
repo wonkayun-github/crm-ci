@@ -1,0 +1,22 @@
+apiVersion: apps/v1 
+kind: Deployment
+metadata:
+  name: crmci-app
+  labels:
+    app: crmci-app
+spec:
+  selector:
+    matchLabels:
+      app: crmci-app
+  replicas: 15
+  template:
+    metadata:
+      labels:
+        app: crmci-app
+    spec:
+      containers:
+      - name: crmci-app
+        image: docker.io/ktdatagarage/crmci-app:0.0.6
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8080

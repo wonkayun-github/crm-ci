@@ -1,0 +1,812 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name=viewport content="width=device-width,initial-scale=1,minimum-scale=1,maximum-scale=2,user-scalable=no">
+    <title>NBSS B2C MongoDB Test Service</title>
+
+    <link href="assets/css/bootstrap.min.css" property='stylesheet' rel="stylesheet" type="text/css" media="screen" />
+    <link href="assets/css/bootstrap-grid.min.css" property='stylesheet' rel="stylesheet" type="text/css" media="screen" />
+    <link href="assets/css/bootstrap-reboot.min.css" property='stylesheet' rel="stylesheet" type="text/css" media="screen" />
+
+    <script src="assets/js/jquery-3.4.1.min.js"></script>
+
+    <script src="assets/js/popper.min.js"></script>
+    <script src="assets/js/bootstrap.min.js"></script>
+</head>
+<body>
+
+<div class="container">
+    <h1>CRM-CI</h1>
+
+    <div class="input-group input-group-sm mb-3">
+        <div class="input-group-prepend">
+            <span class="input-group-text" id="inputGroup-sizing-sm1">고객ID</span>
+        </div>
+        <input type="text" class="form-control" id="custId" aria-label="고객ID" aria-describedby="inputGroup-sizing-sm">
+    </div>
+        <div class="radio">
+        <label>
+            <input type="radio" name="category" id="option1" value="SMS" checked="checked">
+            SMS
+        </label>
+    </div>
+    <div class="radio">
+        <label>
+            <input type="radio" name="category" id="option1" value="MMS">
+            MMS
+        </label>
+    </div>
+    <div class="radio">
+        <label>
+            <input type="radio" name="category" id="option2" value="EMAIL">
+            E-Mail
+        </label>
+    </div>
+    <div class="radio">
+        <label>
+            <input type="radio" name="category" id="option3" value="FAX">
+            Fax
+        </label>
+    </div>
+    <div class="input-group input-group-sm mb-3">
+        <div class="input-group-prepend">
+            <span class="input-group-text" id="inputGroup-sizing-sm3">접수일자</span>
+        </div>
+        <input type="date" class="form-control" aria-label="접수일자" name="start" id="start" value="2001-01-01" aria-describedby="inputGroup-sizing-sm" >
+        <input type="date" class="form-control" aria-label="접수일자" name="end" id="end" value="2999-12-31" aria-describedby="inputGroup-sizing-sm">
+    </div>
+
+    <div class="text-right">
+        <button type="button" class="btn btn-outline-secondary" id="search_All">조회_All</button>
+        <button type="button" class="btn btn-outline-secondary" id="search_by_custId">조회_custId</button>
+        <button type="button" class="btn btn-outline-secondary" id="search_by_category">조회_category</button>
+        <button type="button" class="btn btn-outline-secondary" id="search_by_custId_category">조회_custId_category</button>
+        <button type="button" class="btn btn-outline-secondary" id="search_by_date">조회_date</button>
+        <button type="button" class="btn btn-outline-secondary" id="search_by_custId_date">조회_custId_date</button>
+        <button type="button" class="btn btn-outline-secondary" id="search">조회</button>
+        <button type="button" class="btn btn-outline-secondary" id="send_kafka">KafkaTest</button>
+    </div>
+
+    <table class="table table-hover">
+        <thead>
+            <tr>
+                <th scope="col">고객ID</th>
+                <th scope="col">접수일시</th>
+                <th scope="col">처리유형상세</th>
+                <th scope="col">상태코드</th>
+                <th scope="col">MstrId</th>
+            </tr>
+        </thead>
+        <tbody id="added-articles">
+
+        </tbody>
+    </table>
+
+    <nav aria-label="Page navigation example">
+        <ul id="page" class="pagination justify-content-center">
+        </ul>
+    </nav>
+
+    <table class="table table-bordered">
+        <tbody id="content-table">
+            <tr>
+                <th style="width:15%">내용</th>
+                <td style="width:85%" colspan="3"></td>
+            </tr>
+            <tr>
+                <th>채널유형</th>
+                <td style="width:30%"></td>
+                <th>처리유형상세</th>
+                <td style="width:40%"></td>
+            </tr>
+            <tr>
+                <th>발신자</th>
+                <td></td>
+                <th>수신자</th>
+                <td>
+                </td>
+            </tr>
+            <tr>
+                <th>접수자</th>
+                <td></td>
+                <th>예약발송일시</th>
+                <td>
+                </td>
+            </tr>
+            <tr>
+                <th>발송요청</th>
+                <td colspan="3"></td>
+            </tr>
+            <tr>
+                <th>상태</th>
+                <td colspan="3"></td>
+            </tr>
+        </tbody>
+    </table>
+
+</div>
+<script>
+$("#send_kafka").click(function () {
+    jQuery.ajax({
+        type: "GET",
+        url: "/sendKafka",
+        contentType: "application/json;charset=UTF-8"
+    });
+});
+
+$(document).ready(function () {
+
+});
+
+$("#search").click(function () {
+
+    let category = $(":radio[name='category']:checked").val();
+    let custId = $("#custId").val();
+    let start = $("#start").val();
+    let end = $("#end").val();
+    
+    if(custId == "") {
+        alert("고객ID를 입력하십시오");
+        return;
+    } else if(start == "" && end == "") {
+        alert("날짜를 입력하십시오");
+        return;
+    }else if(start != "") {
+        if(end == "") {
+            alert("날짜를 모두 입력하십시오");
+            return;
+        }
+    } else if(end != "") {
+        if(start == "") {
+            alert("날짜를 모두 입력하십시오");
+            return;
+        }
+    }
+    
+    jQuery.ajax({
+        type: "GET",
+        url: "/findChannelHistory",
+        contentType: "application/json;charset=UTF-8",
+        dataType: "json",
+        data: {
+            "start": (start == '' || start == null) ? '' : start,
+            "end": (end == '' || end == null) ? '' : end,
+            "custId": (custId == '' || custId == null) ? '' : custId,
+            "category": (category == '' || category == null) ? '' : category,
+            "page": "0",
+            "size": "7"
+        },
+        success: function (result) {
+            let event_data = '';
+            let page = '';
+            $("#added-articles tr:has(td)").remove();
+            $.each(result.content, function (i, item) {
+                event_data += '<tr value="' + item._id + '">';
+                event_data += '<td>' + item.custId + '</td>';
+                event_data += '<td>' + item.created + '</td>';
+                event_data += '<td>' + item.categoryMctgNm + '</td>';
+                event_data += '<td>' + item.trmSttusCd + '</td>';
+                event_data += '<td>' + item.mstrId + '</td>';
+                event_data += '</tr>';
+            });
+            $("#added-articles").append(event_data);
+            
+            let endPage = 20;
+            if(result.totalPages < endPage) {
+            	endPage = result.totalPages;
+            }
+            
+            for (let i = 0; i < endPage; i++) {
+                page += '<li class="page-item"><a class="page-link" href="javascript:getList(' + i + ');">' + (i + 1) + '</a></li>';
+            }
+            $("#page").html(page);
+            $("#content-table").empty();
+        }
+    });
+});
+
+$("#search_All").click(function () {    	
+	
+	jQuery.ajax({
+        type: "GET",
+        url: "/findAllTestData",
+        contentType: "application/json;charset=UTF-8",
+        dataType: "json",
+        data: {
+            "page": "0",
+            "size": "7"
+        },
+        success: function (result) {
+            let event_data = '';
+            let page = '';
+            $("#added-articles tr:has(td)").remove();
+            $.each(result.content, function (i, item) {
+                event_data += '<tr value="' + item._id + '">';
+                event_data += '<td>' + item.custId + '</td>';
+                event_data += '<td>' + item.created + '</td>';
+                event_data += '<td>' + item.categoryMctgNm + '</td>';
+                event_data += '<td>' + item.trmSttusCd + '</td>';
+                event_data += '<td>' + item.mstrId + '</td>';
+                event_data += '</tr>';
+            });
+            $("#added-articles").append(event_data);
+            
+            let endPage = 20;
+            if(result.totalPages < endPage) {
+            	endPage = result.totalPages;
+            }
+            
+            for (let i = 0; i < endPage; i++) {
+                page += '<li class="page-item"><a class="page-link" href="javascript:getListAll(' + i + ');">' + (i + 1) + '</a></li>';
+            }
+            $("#page").html(page);
+            $("#content-table").empty();
+        }
+    });
+});
+
+$("#search_by_custId").click(function () {    	
+	let custId = $("#custId").val();
+	
+	if(custId == "") {
+        alert("고객ID를 입력하십시오");
+        return;
+    }
+	
+	jQuery.ajax({
+        type: "GET",
+        url: "/findTestByCustId",
+        contentType: "application/json;charset=UTF-8",
+        dataType: "json",
+        data: {
+        	"custId": custId,
+            "page": "0",
+            "size": "7"
+        },
+        success: function (result) {
+            let event_data = '';
+            let page = '';
+            $("#added-articles tr:has(td)").remove();
+            $.each(result.content, function (i, item) {
+                event_data += '<tr value="' + item._id + '">';
+                event_data += '<td>' + item.custId + '</td>';
+                event_data += '<td>' + item.created + '</td>';
+                event_data += '<td>' + item.categoryMctgNm + '</td>';
+                event_data += '<td>' + item.trmSttusCd + '</td>';
+                event_data += '<td>' + item.mstrId + '</td>';
+                event_data += '</tr>';
+            });
+            $("#added-articles").append(event_data);
+            
+            let endPage = 20;
+            if(result.totalPages < endPage) {
+            	endPage = result.totalPages;
+            }
+            
+            for (let i = 0; i < endPage; i++) {
+                page += '<li class="page-item"><a class="page-link" href="javascript:getListByCustId(' + i + ');">' + (i + 1) + '</a></li>';
+            }
+            $("#page").html(page);
+            $("#content-table").empty();
+        }
+    });
+});
+
+$("#search_by_category").click(function () {
+	
+	let category = $(":radio[name='category']:checked").val();
+	
+    jQuery.ajax({
+        type: "GET",
+        url: "/findTestByCategory",
+        contentType: "application/json;charset=UTF-8",
+        dataType: "json",
+        data: {
+            "category": (category == '' || category == null) ? '' : category,
+            "page": "0",
+            "size": "7"
+        },
+        success: function (result) {
+            let event_data = '';
+            let page = '';
+            $("#added-articles tr:has(td)").remove();
+            $.each(result.content, function (i, item) {
+                event_data += '<tr value="' + item._id + '">';
+                event_data += '<td>' + item.custId + '</td>';
+                event_data += '<td>' + item.created + '</td>';
+                event_data += '<td>' + item.categoryMctgNm + '</td>';
+                event_data += '<td>' + item.trmSttusCd + '</td>';
+                event_data += '<td>' + item.mstrId + '</td>';
+                event_data += '</tr>';
+            });
+            $("#added-articles").append(event_data);
+            
+            let endPage = 20;
+            if(result.totalPages < endPage) {
+            	endPage = result.totalPages;
+            }
+            
+            for (let i = 0; i < endPage; i++) {
+                page += '<li class="page-item"><a class="page-link" href="javascript:findTestByCategory(' + i + ');">' + (i + 1) + '</a></li>';
+            }
+            $("#page").html(page);
+            $("#content-table").empty();
+        }
+    });
+});
+
+$("#search_by_date").click(function () {
+
+    let start = $("#start").val();
+    let end = $("#end").val();
+    
+    if(start == "" && end == "") {
+        alert("날짜를 입력하십시오");
+        return;
+    }else if(start != "") {
+        if(end == "") {
+            alert("날짜를 모두 입력하십시오");
+            return;
+        }
+    } else if(end != "") {
+        if(start == "") {
+            alert("날짜를 모두 입력하십시오");
+            return;
+        }
+    }
+    
+    jQuery.ajax({
+        type: "GET",
+        url: "/findByCreatedBetween",
+        contentType: "application/json;charset=UTF-8",
+        dataType: "json",
+        data: {
+            "start": (start == '' || start == null) ? '' : start,
+            "end": (end == '' || end == null) ? '' : end,
+            "page": "0",
+            "size": "7"
+        },
+        success: function (result) {
+            let event_data = '';
+            let page = '';
+            $("#added-articles tr:has(td)").remove();
+            $.each(result.content, function (i, item) {
+                event_data += '<tr value="' + item._id + '">';
+                event_data += '<td>' + item.custId + '</td>';
+                event_data += '<td>' + item.created + '</td>';
+                event_data += '<td>' + item.categoryMctgNm + '</td>';
+                event_data += '<td>' + item.trmSttusCd + '</td>';
+                event_data += '<td>' + item.mstrId + '</td>';
+                event_data += '</tr>';
+            });
+            $("#added-articles").append(event_data);
+            
+            let endPage = 20;
+            if(result.totalPages < endPage) {
+            	endPage = result.totalPages;
+            }
+            
+            for (let i = 0; i < endPage; i++) {
+                page += '<li class="page-item"><a class="page-link" href="javascript:getListDate(' + i + ');">' + (i + 1) + '</a></li>';
+            }
+            $("#page").html(page);
+            $("#content-table").empty();
+        }
+    });
+});
+
+$("#search_by_custId_category").click(function () {
+
+    let custId = $("#custId").val();
+    let category = $(":radio[name='category']:checked").val();
+    
+    if(custId == "") {
+        alert("고객ID를 입력하십시오");
+        return;
+    }
+    
+    jQuery.ajax({
+        type: "GET",
+        url: "/findByCustIdAndCategoryLctgNm",
+        contentType: "application/json;charset=UTF-8",
+        dataType: "json",
+        data: {
+            "custId": (custId == '' || custId == null) ? '' : custId,
+            "category": (category == '' || category == null) ? '' : category,
+            "page": "0",
+            "size": "7"
+        },
+        success: function (result) {
+            let event_data = '';
+            let page = '';
+            $("#added-articles tr:has(td)").remove();
+            $.each(result.content, function (i, item) {
+                event_data += '<tr value="' + item._id + '">';
+                event_data += '<td>' + item.custId + '</td>';
+                event_data += '<td>' + item.created + '</td>';
+                event_data += '<td>' + item.categoryMctgNm + '</td>';
+                event_data += '<td>' + item.trmSttusCd + '</td>';
+                event_data += '<td>' + item.mstrId + '</td>';
+                event_data += '</tr>';
+            });
+            $("#added-articles").append(event_data);
+            
+            let endPage = 20;
+            if(result.totalPages < endPage) {
+            	endPage = result.totalPages;
+            }
+            
+            for (let i = 0; i < endPage; i++) {
+                page += '<li class="page-item"><a class="page-link" href="javascript:getListCustIdCategory(' + i + ');">' + (i + 1) + '</a></li>';
+            }
+            $("#page").html(page);
+            $("#content-table").empty();
+        }
+    });
+});
+
+$("#search_by_custId_date").click(function () {
+
+    let custId = $("#custId").val();
+    let start = $("#start").val();
+    let end = $("#end").val();
+    
+    if(custId == "") {
+        alert("고객ID를 입력하십시오");
+        return;
+    } else if(start == "" && end == "") {
+        alert("날짜를 입력하십시오");
+        return;
+    }else if(start != "") {
+        if(end == "") {
+            alert("날짜를 모두 입력하십시오");
+            return;
+        }
+    } else if(end != "") {
+        if(start == "") {
+            alert("날짜를 모두 입력하십시오");
+            return;
+        }
+    }
+    
+    jQuery.ajax({
+        type: "GET",
+        url: "/findByCreatedBetweenAndCustId",
+        contentType: "application/json;charset=UTF-8",
+        dataType: "json",
+        data: {
+            "start": (start == '' || start == null) ? '' : start,
+            "end": (end == '' || end == null) ? '' : end,
+            "custId": (custId == '' || custId == null) ? '' : custId,
+            "page": "0",
+            "size": "7"
+        },
+        success: function (result) {
+            let event_data = '';
+            let page = '';
+            $("#added-articles tr:has(td)").remove();
+            $.each(result.content, function (i, item) {
+                event_data += '<tr value="' + item._id + '">';
+                event_data += '<td>' + item.custId + '</td>';
+                event_data += '<td>' + item.created + '</td>';
+                event_data += '<td>' + item.categoryMctgNm + '</td>';
+                event_data += '<td>' + item.trmSttusCd + '</td>';
+                event_data += '<td>' + item.mstrId + '</td>';
+                event_data += '</tr>';
+            });
+            $("#added-articles").append(event_data);
+            
+            let endPage = 20;
+            if(result.totalPages < endPage) {
+            	endPage = result.totalPages;
+            }
+            
+            for (let i = 0; i < endPage; i++) {
+                page += '<li class="page-item"><a class="page-link" href="javascript:getListCustIdDate(' + i + ');">' + (i + 1) + '</a></li>';
+            }
+            $("#page").html(page);
+            $("#content-table").empty();
+        }
+    });
+});
+
+$("#added-articles").on("click", "tr", function () {
+    jQuery.ajax({
+        type: "GET",
+        url: "/findChannelHistoryDetail",
+        contentType: "application/json;charset=UTF-8",
+        dataType: "json",
+        data: {
+            "_id": $(this).attr('value')
+        },
+        success: function (result) {
+            let content_data = '';
+            $("#content-table").empty();
+            content_data += '<tr>\n' +
+                '                <th style="width:15%">내용</th>\n' +
+                '                <td style="width:85%" colspan="3">' + result.trmSbst + '</td>\n' +
+                '            </tr>\n' +
+                '            <tr>\n' +
+                '                <th>채널유형</th>\n' +
+                '                <td style="width:30%">' + result.categoryLctgNm + '</td>\n' +
+                '                <th>처리유형상세</th>\n' +
+                '                <td style="width:40%">' + result.categoryMctgNm + '</td>\n' +
+                '            </tr>\n' +
+                '            <tr>\n' +
+                '                <th>발신자</th>\n' +
+                '                <td>' + result.otgorInfoSbst + '</td>\n' +
+                '                <th>수신자</th>\n' +
+                '                <td>' + result.rcvrInfoSbst + '</td>\n' +
+                '            </tr>\n' +
+                '            <tr>\n' +
+                '                <th>접수자</th>\n' +
+                '                <td>' + result.createdBy + '</td>\n' +
+                '                <th>예약발송일시</th>\n' +
+                '                <td>' + result.rcvrSndDt + '</td>' +
+                '            </tr>\n' +
+                '            <tr>\n' +
+                '                <th>발송요청</th>\n' +
+                '                <td colspan="3">' + result.sndSystemNm + '</td>\n' +
+                '            </tr>\n' +
+                '            <tr>\n' +
+                '                <th>상태</th>\n' +
+                '                <td colspan="3">' + result.trmSttusCd + '</td>\n' +
+                '            </tr>';
+            $("#content-table").append(content_data);
+        }
+    });
+});
+
+function getList(i) {
+
+    let category = $(":radio[name='category']:checked").val();
+    let custId = $("#custId").val();
+    let start = $("#start").val();
+    let end = $("#end").val();
+    
+    if(custId == "") {
+        alert("고객ID를 입력하십시오");
+        return;
+    } else if(start == "" && end == "") {
+        alert("날짜를 입력하십시오");
+        return;
+    }else if(start != "") {
+        if(end == "") {
+            alert("날짜를 모두 입력하십시오");
+            return;
+        }
+    } else if(end != "") {
+        if(start == "") {
+            alert("날짜를 모두 입력하십시오");
+            return;
+        }
+    }
+	
+    jQuery.ajax({
+        type:"GET",
+        url:"/findChannelHistory",
+        contentType:"application/json;charset=UTF-8",
+        dataType:"json",
+        data: {
+            "start": (start == '' || start == null) ? '' : start,
+            "end": (end == '' || end == null) ? '' : end,
+            "custId": (custId == '' || custId == null) ? '' : custId,
+            "category": (category == '' || category == null) ? '' : category,
+            "page": "0",
+            "size": "7"
+        },
+        success:function(result) {
+            let event_data = '';
+            let page = '';
+            $("#added-articles tr:has(td)").remove();
+            $.each(result.content, function(i, item) {
+                event_data += '<tr value="' + item._id + '">';
+                event_data += '<td>' + item.custId + '</td>';
+                event_data += '<td>' + item.created + '</td>';
+                event_data += '<td>' + item.categoryMctgNm + '</td>';
+                event_data += '<td>' + item.trmSttusCd + '</td>';
+                event_data += '<td>' + item.mstrId + '</td>';
+                event_data += '</tr>';
+            });
+            $("#added-articles").append(event_data);
+            $("#content-table").empty();
+        }
+    });
+}
+
+function getListAll(i) {
+
+    jQuery.ajax({
+        type:"GET",
+        url:"/findAllTestData",
+        contentType:"application/json;charset=UTF-8",
+        dataType:"json",
+        data:{
+            "page":i,
+            "size":"7"
+        },
+        success:function(result) {
+            let event_data = '';
+            let page = '';
+            $("#added-articles tr:has(td)").remove();
+            $.each(result.content, function(i, item) {
+                event_data += '<tr value="' + item._id + '">';
+                event_data += '<td>' + item.custId + '</td>';
+                event_data += '<td>' + item.created + '</td>';
+                event_data += '<td>' + item.categoryMctgNm + '</td>';
+                event_data += '<td>' + item.trmSttusCd + '</td>';
+                event_data += '<td>' + item.mstrId + '</td>';
+                event_data += '</tr>';
+            });
+            $("#added-articles").append(event_data);
+            $("#content-table").empty();
+        }
+    });
+}
+
+function getListByCustId(i) {
+	
+    let custId = $("#custId").val();
+	
+	if(custId == "") {
+        alert("고객ID를 입력하십시오");
+        return;
+    }
+	
+	jQuery.ajax({
+        type: "GET",
+        url: "/findTestByCustId",
+        contentType: "application/json;charset=UTF-8",
+        dataType: "json",
+        data: {
+        	"custId": custId,
+            "page": i,
+            "size": "7"
+        },
+        success:function(result) {
+            let event_data = '';
+            let page = '';
+            $("#added-articles tr:has(td)").remove();
+            $.each(result.content, function(i, item) {
+                event_data += '<tr value="' + item._id + '">';
+                event_data += '<td>' + item.custId + '</td>';
+                event_data += '<td>' + item.created + '</td>';
+                event_data += '<td>' + item.categoryMctgNm + '</td>';
+                event_data += '<td>' + item.trmSttusCd + '</td>';
+                event_data += '<td>' + item.mstrId + '</td>';
+                event_data += '</tr>';
+            });
+            $("#added-articles").append(event_data);
+            $("#content-table").empty();
+        }
+    });
+}
+
+function getListByCategory(i) {
+
+    let category = $(":radio[name='category']:checked").val();
+	
+    jQuery.ajax({
+        type: "GET",
+        url: "/findTestByCategory",
+        contentType: "application/json;charset=UTF-8",
+        dataType: "json",
+        data: {
+            "category": (category == '' || category == null) ? '' : category,
+            "page":i,
+            "size":"7"
+        },
+        success:function(result) {
+            let event_data = '';
+            let page = '';
+            $("#added-articles tr:has(td)").remove();
+            $.each(result.content, function(i, item) {
+                event_data += '<tr value="' + item._id + '">';
+                event_data += '<td>' + item.custId + '</td>';
+                event_data += '<td>' + item.created + '</td>';
+                event_data += '<td>' + item.categoryMctgNm + '</td>';
+                event_data += '<td>' + item.trmSttusCd + '</td>';
+                event_data += '<td>' + item.mstrId + '</td>';
+                event_data += '</tr>';
+            });
+            $("#added-articles").append(event_data);
+            $("#content-table").empty();
+        }
+    });
+}
+
+function getListByDate(i) {
+
+    jQuery.ajax({
+        type:"GET",
+        url:"/findByCreatedBetween",
+        contentType:"application/json;charset=UTF-8",
+        dataType:"json",
+        data:{
+            "page":i,
+            "size":"7"
+        },
+        success:function(result) {
+            let event_data = '';
+            let page = '';
+            $("#added-articles tr:has(td)").remove();
+            $.each(result.content, function(i, item) {
+                event_data += '<tr value="' + item._id + '">';
+                event_data += '<td>' + item.custId + '</td>';
+                event_data += '<td>' + item.created + '</td>';
+                event_data += '<td>' + item.categoryMctgNm + '</td>';
+                event_data += '<td>' + item.trmSttusCd + '</td>';
+                event_data += '<td>' + item.mstrId + '</td>';
+                event_data += '</tr>';
+            });
+            $("#added-articles").append(event_data);
+            $("#content-table").empty();
+        }
+    });
+}
+
+function getListCustIdCategory(i) {
+
+    jQuery.ajax({
+        type:"GET",
+        url:"//findByCustIdAndCategoryLctgNm",
+        contentType:"application/json;charset=UTF-8",
+        dataType:"json",
+        data:{
+            "page":i,
+            "size":"7"
+        },
+        success:function(result) {
+            let event_data = '';
+            let page = '';
+            $("#added-articles tr:has(td)").remove();
+            $.each(result.content, function(i, item) {
+                event_data += '<tr value="' + item._id + '">';
+                event_data += '<td>' + item.custId + '</td>';
+                event_data += '<td>' + item.created + '</td>';
+                event_data += '<td>' + item.categoryMctgNm + '</td>';
+                event_data += '<td>' + item.trmSttusCd + '</td>';
+                event_data += '<td>' + item.mstrId + '</td>';
+                event_data += '</tr>';
+            });
+            $("#added-articles").append(event_data);
+            $("#content-table").empty();
+        }
+    });
+}
+
+function getListCustIdDate(i) {
+
+    jQuery.ajax({
+        type:"GET",
+        url:"/findByCreatedBetweenAndCustId",
+        contentType:"application/json;charset=UTF-8",
+        dataType:"json",
+        data:{
+            "page":i,
+            "size":"7"
+        },
+        success:function(result) {
+            let event_data = '';
+            let page = '';
+            $("#added-articles tr:has(td)").remove();
+            $.each(result.content, function(i, item) {
+                event_data += '<tr value="' + item._id + '">';
+                event_data += '<td>' + item.custId + '</td>';
+                event_data += '<td>' + item.created + '</td>';
+                event_data += '<td>' + item.categoryMctgNm + '</td>';
+                event_data += '<td>' + item.trmSttusCd + '</td>';
+                event_data += '<td>' + item.mstrId + '</td>';
+                event_data += '</tr>';
+            });
+            $("#added-articles").append(event_data);
+            $("#content-table").empty();
+        }
+    });
+}
+
+</script>	
+
+</body>
+</html>
